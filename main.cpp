@@ -354,6 +354,22 @@ repeat_region_input:
 	}
 	SEPARATOR;
 
+	cout << endl << "Test!!! Generated Distortion C Buzzy 64khz table..." << endl;
+	SEPARATOR;
+	for (int i = 0; i < 64; i++)
+	{	
+		IS_BUZZY_DIST_C = 1;
+		IS_GRITTY_DIST_C = 0;
+		IS_UNSTABLE_DIST_C = 0;
+		
+		int note = i + 24;
+		double freq = p[note * 12];
+		int distortion = 0xC0;
+		generate_table(i, freq, distortion, 0, 0, 0);
+		if (i % 12 == 0) cout << endl;
+		cout << "$" << hex << tab_64khz_c_buzzy[i] << ",";
+	}
+	SEPARATOR;
 
 /////////
 	file.close();	//done, save the .txt file
@@ -726,6 +742,51 @@ void generate_table(int note, double freq, int distortion, bool CLOCK_15, bool C
 		else if (CLOCK_15) tab_15khz_a_pure[note] = audf;
 		else tab_64khz_a_pure[note] = audf; 
 		break;
+
+	case 0xC0:
+		divisor = (IS_BUZZY_DIST_C || CLOCK_15) ? 2.5 : 7.5;
+		v_modulo = (CLOCK_15) ? 5 : 15;
+		if (IS_UNSTABLE_DIST_C) divisor = 1.5;
+		audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
+
+		if (IS_BUZZY_DIST_C)	//verify MOD3 integrity
+		{
+			if ((audf + modoffset) % 3 == 0 && (audf + modoffset) % 5 != 0) goto process_dist_c_tab;	//all good!
+			
+			int tmp_audf_up = audf;		//begin from the currently invalid audf
+			int tmp_audf_down = audf;	
+			double tmp_freq_up = 0;
+			double tmp_freq_down = 0;
+			
+			for (int o = 0; o < 6; o++)	//get the closest compromise up and down first
+			{
+				if ((tmp_audf_up + modoffset) % 3 != 0 || (tmp_audf_up + modoffset) % 5 == 0) tmp_audf_up++;
+				if ((tmp_audf_down + modoffset) % 3 != 0 || (tmp_audf_down + modoffset) % 5 == 0) tmp_audf_down--;
+			}
+			
+			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
+			tmp_freq_up = freq - PITCH;	//first delta, up
+			
+			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
+			tmp_freq_down = PITCH - freq;	//second delta, down
+			
+			PITCH = tmp_freq_down - tmp_freq_up;
+			
+			if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
+			else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
+
+		}
+		
+process_dist_c_tab: 
+		if (!JOIN_16BIT && (audf > 0xFF || audf < 0x00)) break;	//invalid 8-bit range!
+//		if (JOIN_16BIT) tab_16bit_a_pure[note * 2] = audf;
+//		else if (CLOCK_179) tab_179mhz_a_pure[note] = audf;
+//		else if (CLOCK_15) tab_15khz_a_pure[note] = audf;
+//		else tab_64khz_c_buzzy[note] = audf; 
+
+		if (IS_BUZZY_DIST_C) tab_64khz_c_buzzy[note] = audf; 
+		break;		
+		
 	}
 
 
