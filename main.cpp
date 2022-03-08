@@ -66,69 +66,16 @@ int main()
 {
 	cout << endl << "POKEY Frequencies Calculator " VERSION " by VinsCool" << endl;
 	SEPARATOR;
-repeat_tuning_input:
-	cout << endl << "Please input the A-4 tuning first.\nFor example: 440, 432, 439.8, 440.83751645933, 444.895778867913, etc" << endl;
-  	while (true)
-  	{
-    		cout << "? ";
-    		if (!(cin >> i_tuning))
-    		{
-     			if (cin.eof())
-     			{
-        			cout << "End of file reached, exiting." << endl;
-        			return 1;
-      			}
-      			else
-      			{
-        			cin.clear();
-        			cin.ignore(numeric_limits<streamsize>::max(), '\n');
-       				cout << "Error: Invalid parameter!" << endl;
-      			}
-    		}
-    		else break;
-  	}
-  	if (i_tuning < 400)
-  	{
-  		cout << "Error: Invalid parameter!\n\nPlease input values above 400" << endl;
-  		wait(2);
-  		SEPARATOR;
-  		goto repeat_tuning_input;
-  	}
-	if (i_tuning > 500)
-  	{
-  		cout << "Error: Invalid parameter!\n\nPlease input values below 500" << endl;
-  		wait(2);
-  		SEPARATOR;
-  		goto repeat_tuning_input;
-  	}
-	SEPARATOR;
-repeat_region_input:
-	cout << endl << "Machine region?\n1- PAL\n2- NTSC" << endl;
-  	while (true)
-  	{
-    		cout << "? ";
-    		if (!(cin >> machine_region))
-    		{
-     			if (cin.eof())
-     			{
-        			cout << "End of file reached, exiting." << endl;
-        			return 1;
-      			}
-      			else
-      			{
-        			cin.clear();
-        			cin.ignore(numeric_limits<streamsize>::max(), '\n');
-       				cout << "Error: Invalid parameter!" << endl;
-      			}
-    		}
-    		else break;
-  	}
-	if (machine_region != 1 && machine_region != 2)
+	cin.exceptions (std::ios::eofbit);
+	try
 	{
-		cout << endl << "Error!\nYou must chose between option 1 or option 2 only." << endl;
-  		wait(2);
-  		SEPARATOR;
-		goto repeat_region_input;
+		i_tuning = get_tuning();
+		machine_region = get_region();
+	}
+	catch (const std::ios::failure& e)
+	{
+		cout << "End of file reached, exiting." << endl;
+		return 1;
 	}
 	FREQ_17 = (machine_region == 1) ? FREQ_17_PAL : FREQ_17_NTSC;
 	SEPARATOR;
@@ -1012,5 +959,63 @@ process_dist_c_tab:
 
 	}
 
+}
+
+double get_tuning()
+{
+	double tuning;
+	while (true)
+	{
+		read_input (&tuning, "Please input the A-4 tuning first.\nFor example: 440, 432, 439.8, 440.83751645933, 444.895778867913, etc");
+		if (tuning <= 400 || tuning >= 500)
+		{
+			if (tuning <= 400)
+			{
+				cout << "Please input a value above 400." << endl;
+			}
+			else
+			{
+				cout << "Please input values below 500." << endl;
+			}
+			wait(2);
+			SEPARATOR;
+		}
+		else break;
+	}
+	return tuning;
+}
+
+int get_region()
+{
+	int region;
+	while (true)
+	{
+		read_input (&region, "Machine region?\n1- PAL\n2- NTSC");
+		if (region != 1 && region != 2)
+		{
+			cout << endl << "You must chose between option 1 or option 2 only." << endl;
+			wait(2);
+			SEPARATOR;
+		}
+		else break;
+	}
+	return region;
+}
+
+template <typename T>
+void read_input(T* output, std::string prompt)
+{
+	cout << prompt << endl;
+	while (true)
+	{
+		cout << "? ";
+		if (!(cin >> *output))
+		{
+			cin.clear();
+			cin.ignore(numeric_limits<streamsize>::max(), '\n');
+			cout << "Error: Invalid parameter!" << endl;
+		}
+		else break;
+	}
 }
 
