@@ -22,6 +22,7 @@ void real_freq();
 void generate_freq();
 void generate_table(int note, double freq, int distortion, bool IS_15KHZ, bool IS_179MHZ, bool IS_16BIT);
 int get_audf(double freq, int coarse_divisor, double divisor, int modoffset);
+double get_pitch(int audf, int coarse_divisor, double divisor, int modoffset);
 int delta_audf(int audf, double freq, int coarse_divisor, double divisor, int modoffset, int distortion);
 double get_tuning();
 int get_region();

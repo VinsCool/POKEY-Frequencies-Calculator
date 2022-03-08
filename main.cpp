@@ -60,7 +60,6 @@ bool IS_GRITTY_DIST_C = 0;
 bool IS_UNSTABLE_DIST_C = 0;
 
 bool IS_METALLIC_POLY9 = 0;
-//bool IS_UNSTABLE_FREQ = 0;
 
 int main()
 {
@@ -619,13 +618,9 @@ void generate_freq()	//Parts of this code was used in RMT 1.31+
 	double PITCH = 0;
 	double divisor = 0;
 	int coarse_divisor = 0;
-//	int basefreq = 0;
-//	int unstablefreq = 0;
-//	int x = 0;
-//	int y = 0;
 
 	IS_BUZZY_DIST_C = 0;
-//	IS_GRITTY_DIST_C = 0;
+	IS_GRITTY_DIST_C = 0;
 	IS_UNSTABLE_DIST_C = 0;
 
 	IS_METALLIC_POLY9 = 0;
@@ -716,7 +711,8 @@ that would be 232.5
 		break;
 	}
 	if (IS_VALID)
-		PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (audf + modoffset)) / 2;
+		//PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (audf + modoffset)) / 2;
+		PITCH = get_pitch(audf, coarse_divisor, divisor, modoffset);
 
 	if (PITCH > 16.1)	//~C-0, lowest pitch allowed
 	{
@@ -780,7 +776,7 @@ void generate_table(int note, double freq, int distortion, bool IS_15KHZ, bool I
 	case 0x20:
 		divisor = 31;
 		v_modulo = 31;
-		audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
+		audf = get_audf(freq, coarse_divisor, divisor, modoffset);
 
 		if ((audf + modoffset) % v_modulo == 0)	//invalid values
 			audf = delta_audf(audf, freq, coarse_divisor, divisor, modoffset, distortion);
@@ -788,12 +784,11 @@ void generate_table(int note, double freq, int distortion, bool IS_15KHZ, bool I
 		if (!JOIN_16BIT && (audf > 0xFF || audf < 0x00)) break;	//invalid 8-bit range!
 		if (JOIN_16BIT) tab_16bit_2[note * 2] = audf;
 		else if (CLOCK_179) tab_179mhz_2[note] = audf;
-		//else if (CLOCK_15) tab_15khz_2[note] = audf;	//lol no
 		else tab_64khz_2[note] = audf;
 		break;
 
 	case 0xA0:
-		audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
+		audf = get_audf(freq, coarse_divisor, divisor, modoffset);
 		if (!JOIN_16BIT && (audf > 0xFF || audf < 0x00)) break;	//invalid 8-bit range!
 		if (JOIN_16BIT) tab_16bit_a_pure[note * 2] = audf;
 		else if (CLOCK_179) tab_179mhz_a_pure[note] = audf;
@@ -805,7 +800,7 @@ void generate_table(int note, double freq, int distortion, bool IS_15KHZ, bool I
 		divisor = (IS_BUZZY_DIST_C || CLOCK_15) ? 2.5 : 7.5;
 		v_modulo = (CLOCK_15) ? 5 : 15;
 		if (IS_UNSTABLE_DIST_C) divisor = 1.5;
-		audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
+		audf = get_audf(freq, coarse_divisor, divisor, modoffset);
 		
 		if ((CLOCK_15 && (audf + modoffset) % v_modulo == 0) || 
 		(IS_BUZZY_DIST_C && ((audf + modoffset) % 3 != 0 || (audf + modoffset) % 5 == 0)) || 
@@ -845,6 +840,12 @@ void generate_table(int note, double freq, int distortion, bool IS_15KHZ, bool I
 
 	}
 
+}
+
+double get_pitch(int audf, int coarse_divisor, double divisor, int modoffset)
+{
+	double PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (audf + modoffset)) / 2;
+	return PITCH;
 }
 
 int get_audf(double freq, int coarse_divisor, double divisor, int modoffset)
@@ -896,9 +897,9 @@ int delta_audf(int audf, double freq, int coarse_divisor, double divisor, int mo
 	}
 	else return 0;	//invalid parameter most likely
 
-	PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
+	PITCH = get_pitch(tmp_audf_up, coarse_divisor, divisor, modoffset);
 	tmp_freq_up = freq - PITCH;	//first delta, up
-	PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
+	PITCH = get_pitch(tmp_audf_down, coarse_divisor, divisor, modoffset);
 	tmp_freq_down = PITCH - freq;	//second delta, down
 	PITCH = tmp_freq_down - tmp_freq_up;
 	if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
