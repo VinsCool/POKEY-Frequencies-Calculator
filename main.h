@@ -9,6 +9,7 @@
 #include <fstream>
 #include <time.h>
 #include <cmath>
+#include <limits>
 
 #define VERSION "v0.1"
 #define FREQ_17_NTSC 1789773 
