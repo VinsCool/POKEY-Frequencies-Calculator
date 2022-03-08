@@ -757,7 +757,7 @@ that would be 232.5
 	}
 }
 
-void generate_table(int note, double freq, int distortion, bool CLOCK_15, bool CLOCK_179, bool JOIN_16BIT)
+void generate_table(int note, double freq, int distortion, bool IS_15KHZ, bool IS_179MHZ, bool IS_16BIT)
 {
 	int audf = 0;
 	int modoffset = 1;
@@ -765,7 +765,11 @@ void generate_table(int note, double freq, int distortion, bool CLOCK_15, bool C
 	int v_modulo = 0;
 	double divisor = 1;
 	double PITCH = 0;
-	bool IS_VALID = 0;
+	
+	//since globals are specifically wanted, the parameters are used to define these flags here
+	CLOCK_15 = IS_15KHZ;
+	CLOCK_179 = IS_179MHZ;
+	JOIN_16BIT = IS_16BIT;
 
 	if (JOIN_16BIT) modoffset = 7;
 	else if (CLOCK_179) modoffset = 4;
@@ -779,24 +783,7 @@ void generate_table(int note, double freq, int distortion, bool CLOCK_15, bool C
 		audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
 
 		if ((audf + modoffset) % v_modulo == 0)	//invalid values
-		{
-			//begin from the currently invalid audf, only offset by 1 for each
-			int tmp_audf_up = audf + 1;
-			int tmp_audf_down = audf - 1;
-			double tmp_freq_up = 0;
-			double tmp_freq_down = 0;
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
-			tmp_freq_up = freq - PITCH;	//first delta, up
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
-			tmp_freq_down = PITCH - freq;	//second delta, down
-
-			PITCH = tmp_freq_down - tmp_freq_up;
-
-			if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
-			else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
-		}
+			audf = delta_audf(audf, freq, coarse_divisor, divisor, modoffset, distortion);
 
 		if (!JOIN_16BIT && (audf > 0xFF || audf < 0x00)) break;	//invalid 8-bit range!
 		if (JOIN_16BIT) tab_16bit_2[note * 2] = audf;
@@ -819,118 +806,17 @@ void generate_table(int note, double freq, int distortion, bool CLOCK_15, bool C
 		v_modulo = (CLOCK_15) ? 5 : 15;
 		if (IS_UNSTABLE_DIST_C) divisor = 1.5;
 		audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
-
-		if (CLOCK_15)	//MOD5 must be avoided!
+		
+		if ((CLOCK_15 && (audf + modoffset) % v_modulo == 0) || 
+		(IS_BUZZY_DIST_C && ((audf + modoffset) % 3 != 0 || (audf + modoffset) % 5 == 0)) || 
+		(IS_GRITTY_DIST_C && ((audf + modoffset) % 3 == 0 || (audf + modoffset) % 5 == 0)) || 
+		(IS_UNSTABLE_DIST_C && ((audf + modoffset) % 3 == 0 || (audf + modoffset) % 5 != 0))) 
 		{
-			if ((audf + modoffset) % v_modulo != 0) goto process_dist_c_tab;	//all good!
-
-			int tmp_audf_up = audf;		//begin from the currently invalid audf
-			int tmp_audf_down = audf;
-			double tmp_freq_up = 0;
-			double tmp_freq_down = 0;
-
-			for (int o = 0; o < 3; o++)	//get the closest compromise up and down first
-			{
-				if ((tmp_audf_up + modoffset) % v_modulo == 0) tmp_audf_up++;
-				if ((tmp_audf_down + modoffset) % v_modulo == 0) tmp_audf_down--;
-			}
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
-			tmp_freq_up = freq - PITCH;	//first delta, up
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
-			tmp_freq_down = PITCH - freq;	//second delta, down
-
-			PITCH = tmp_freq_down - tmp_freq_up;
-
-			if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
-			else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
-
+			audf = delta_audf(audf, freq, coarse_divisor, divisor, modoffset, distortion); //aaaaaa
+			if (!JOIN_16BIT && (audf > 0xFF && audf < 0x103)) audf = 0xFF; 
+			//failsafe, in case a value goes beyond $FF, force it to never go further, otherwise it is invalid
 		}
-		else if (IS_BUZZY_DIST_C)	//verify MOD3 integrity
-		{
-			if ((audf + modoffset) % 3 == 0 && (audf + modoffset) % 5 != 0) goto process_dist_c_tab;	//all good!
 
-			int tmp_audf_up = audf;		//begin from the currently invalid audf
-			int tmp_audf_down = audf;
-			double tmp_freq_up = 0;
-			double tmp_freq_down = 0;
-
-			for (int o = 0; o < 6; o++)	//get the closest compromise up and down first
-			{
-				if ((tmp_audf_up + modoffset) % 3 != 0 || (tmp_audf_up + modoffset) % 5 == 0) tmp_audf_up++;
-				if ((tmp_audf_down + modoffset) % 3 != 0 || (tmp_audf_down + modoffset) % 5 == 0) tmp_audf_down--;
-			}
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
-			tmp_freq_up = freq - PITCH;	//first delta, up
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
-			tmp_freq_down = PITCH - freq;	//second delta, down
-
-			PITCH = tmp_freq_down - tmp_freq_up;
-
-			if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
-			else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
-		}
-		else if (IS_GRITTY_DIST_C)	//verify neither MOD3 or MOD5 is used
-		{
-			if ((audf + modoffset) % 3 != 0 && (audf + modoffset) % 5 != 0) goto process_dist_c_tab;	//all good!
-
-			int tmp_audf_up = audf;		//begin from the currently invalid audf
-			int tmp_audf_down = audf;
-			double tmp_freq_up = 0;
-			double tmp_freq_down = 0;
-
-			for (int o = 0; o < 6; o++)	//get the closest compromise up and down first
-			{
-				if ((tmp_audf_up + modoffset) % 3 == 0 || (tmp_audf_up + modoffset) % 5 == 0) tmp_audf_up++;
-				if ((tmp_audf_down + modoffset) % 3 == 0 || (tmp_audf_down + modoffset) % 5 == 0) tmp_audf_down--;
-			}
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
-			tmp_freq_up = freq - PITCH;	//first delta, up
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
-			tmp_freq_down = PITCH - freq;	//second delta, down
-
-			PITCH = tmp_freq_down - tmp_freq_up;
-
-			if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
-			else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
-
-			if (!JOIN_16BIT && (audf > 0xFF && audf < 0x106)) audf = 0xFF; //failsafe, in case a value goes beyond $FF, force it to never go further, otherwise it is invalid
-		}
-		else if (IS_UNSTABLE_DIST_C)
-		{
-			if ((audf + modoffset) % 3 != 0 && (audf + modoffset) % 5 == 0) goto process_dist_c_tab;	//all good!
-
-			int tmp_audf_up = audf;		//begin from the currently invalid audf
-			int tmp_audf_down = audf;
-			double tmp_freq_up = 0;
-			double tmp_freq_down = 0;
-
-			for (int o = 0; o < 6; o++)	//get the closest compromise up and down first
-			{
-				if ((tmp_audf_up + modoffset) % 3 == 0 || (tmp_audf_up + modoffset) % 5 != 0) tmp_audf_up++;
-				if ((tmp_audf_down + modoffset) % 3 == 0 || (tmp_audf_down + modoffset) % 5 != 0) tmp_audf_down--;
-			}
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
-			tmp_freq_up = freq - PITCH;	//first delta, up
-
-			PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
-			tmp_freq_down = PITCH - freq;	//second delta, down
-
-			PITCH = tmp_freq_down - tmp_freq_up;
-
-			if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
-			else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
-
-		}
-		else break;	//invalid parameter
-
-process_dist_c_tab:
 		if (!JOIN_16BIT && (audf > 0xFF || audf < 0x00)) break;	//invalid 8-bit range!
 		if (JOIN_16BIT)
 		{
@@ -959,6 +845,65 @@ process_dist_c_tab:
 
 	}
 
+}
+
+int get_audf(double freq, int coarse_divisor, double divisor, int modoffset)
+{
+	int audf = (int)round(((FREQ_17 / (coarse_divisor * divisor)) / (2 * freq)) - modoffset);
+	return audf;
+}
+
+int delta_audf(int audf, double freq, int coarse_divisor, double divisor, int modoffset, int distortion)
+{
+	int tmp_audf_up = audf;		//begin from the currently invalid audf
+	int tmp_audf_down = audf;
+	double tmp_freq_up = 0;
+	double tmp_freq_down = 0;
+	double PITCH = 0;
+
+	if (distortion != 0xC0) { tmp_audf_up++; tmp_audf_down--; }	//anything not distortion C, simpliest delta method
+	else if (CLOCK_15)
+	{
+		for (int o = 0; o < 3; o++)	//MOD5 must be avoided!
+		{
+			if ((tmp_audf_up + modoffset) % 5 == 0) tmp_audf_up++;
+			if ((tmp_audf_down + modoffset) % 5 == 0) tmp_audf_down--;
+		}	
+	}
+	else if (IS_BUZZY_DIST_C)	//verify MOD3 integrity
+	{
+		for (int o = 0; o < 6; o++) 
+		{
+			if ((tmp_audf_up + modoffset) % 3 != 0 || (tmp_audf_up + modoffset) % 5 == 0) tmp_audf_up++;
+			if ((tmp_audf_down + modoffset) % 3 != 0 || (tmp_audf_down + modoffset) % 5 == 0) tmp_audf_down--;
+		}
+	}
+	else if (IS_GRITTY_DIST_C)	//verify neither MOD3 or MOD5 is used
+	{
+		for (int o = 0; o < 6; o++)	//get the closest compromise up and down first
+		{
+			if ((tmp_audf_up + modoffset) % 3 == 0 || (tmp_audf_up + modoffset) % 5 == 0) tmp_audf_up++;
+			if ((tmp_audf_down + modoffset) % 3 == 0 || (tmp_audf_down + modoffset) % 5 == 0) tmp_audf_down--;
+		}	
+	}
+	else if (IS_UNSTABLE_DIST_C)	//verify MOD5 integrity
+	{
+		for (int o = 0; o < 6; o++)	//get the closest compromise up and down first
+		{
+			if ((tmp_audf_up + modoffset) % 3 == 0 || (tmp_audf_up + modoffset) % 5 != 0) tmp_audf_up++;
+			if ((tmp_audf_down + modoffset) % 3 == 0 || (tmp_audf_down + modoffset) % 5 != 0) tmp_audf_down--;
+		}	
+	}
+	else return 0;	//invalid parameter most likely
+
+	PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_up + modoffset)) / 2;
+	tmp_freq_up = freq - PITCH;	//first delta, up
+	PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (tmp_audf_down + modoffset)) / 2;
+	tmp_freq_down = PITCH - freq;	//second delta, down
+	PITCH = tmp_freq_down - tmp_freq_up;
+	if (PITCH > 0) audf = tmp_audf_up; //positive, meaning delta up is closer than delta down
+	else audf = tmp_audf_down; //negative, meaning delta down is closer than delta up
+	return audf;
 }
 
 double get_tuning()
