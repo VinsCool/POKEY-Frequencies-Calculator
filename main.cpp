@@ -129,20 +129,20 @@ repeat_region_input:
 	SEPARATOR;
 
 	fstream file;
-	file.open("frequencies.txt", ios::out);
 	// Backup streambuffers of cout
 	streambuf* stream_buffer_cout = cout.rdbuf();
 	// Get the streambuffer of the file
 	streambuf* stream_buffer_file = file.rdbuf();
+	
 	cout << fixed;
 	cout << setprecision(2);
 	cout << uppercase;
 
 /////////////////////////////////////////////////////////////////////////////
 
-	// Redirect cout back to screen
-	cout.rdbuf(stream_buffer_cout);
 	cout << endl << "Generating frequencies using input parameters... " << flush;
+	
+	file.open("frequencies.txt", ios::out);
 
 	// Redirect cout to file
 	cout.rdbuf(stream_buffer_file);
@@ -194,8 +194,6 @@ repeat_region_input:
 
 	//TODO: generate tables using a macro
 	
-	// Redirect cout back to screen
-	cout.rdbuf(stream_buffer_cout);
 	cout << "Generating tables using input parameters... " << flush;
 	
 	file.open("tables.txt", ios::out);
