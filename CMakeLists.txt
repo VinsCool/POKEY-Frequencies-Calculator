@@ -1,16 +1,21 @@
-﻿# CMakeList.txt : CMake project for POKEY Frequencies Calculator, include source and define
-# project specific logic here.
-#
-cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required (VERSION 3.8)
 
 project ("POKEY Frequencies Calculator")
 
-# Add source to this project's executable.
-add_executable (POKECALC "main.cpp" "main.h"  )
-target_link_libraries(POKECALC PUBLIC "-static")
+option (FORCE_STATIC_LINKING "Force static linking in case it's not the compiler's default" OFF)
 
-# TODO: Add tests and install targets if needed.
+set (SRCS
+	main.cpp
+)
 
+add_executable (POKECALC ${SRCS})
 
+if (FORCE_STATIC_LINKING)
+	if (MSVC)
+		message ("TODO: Implement forced static linking on MSVC")
+	else ()
+		target_link_libraries(POKECALC PUBLIC "-static")
+	endif ()
+endif (FORCE_STATIC_LINKING)
 
-
+install (TARGETS POKECALC RUNTIME DESTINATION "bin")
