@@ -163,390 +163,81 @@ int main()
 
 ///////////////////////////////////////////////////////////
 
-	cout << endl << "Test!!! Generated Distortion 2 64khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
+	//All the tables that could be calculated will be generated inside this entire block
+	for (int d = 0x00; d < 0xE0; d += 0x20)
 	{
-		int note = i + 12;
-		double freq = p[note * 12];
-		int distortion = 0x20;
-		generate_table(i, freq, distortion, 0, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_64khz_2[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
+		if (d == 0x00 || d == 0x40 || d == 0x60 || d == 0x80) continue;	//no good use yet
+		int distortion = d >> 4;
+		int note_offset[4] = { 0 };
+		
+		int dist_2_offset[4] = {12, 0, 48, 24};
+		int dist_a_offset[4] = {48, 24, 108, 24};
+		int dist_c_buzzy_offset[4] = {24, 12, 84, 24};
+		int dist_c_gritty_offset[4] = {12, 0, 60, 24};
+		int dist_c_unstable_offset[4] = {36, 0, 96, 24};
+		
+		bool IS_15KHZ = 0;
+		bool IS_179MHZ = 0;
+		bool IS_16BIT = 0;
+		
+		if (d == 0xC0)
+		{
+			IS_BUZZY_DIST_C = 1;	//iteration 1: Buzzy
+			IS_GRITTY_DIST_C = 0;
+			IS_UNSTABLE_DIST_C = 0;
+		}
+		int dist_c_counter = 0;	//a shitty hack but who will call the police really?
+repeat_dist_c:
+		for (int c = 0; c < 4; c++)
+		{
+			if (d == 0x20) note_offset[c] = dist_2_offset[c]; 
+			else if (d == 0xA0) note_offset[c] = dist_a_offset[c]; 
+			else if (d == 0xC0)
+			{
+				if (IS_BUZZY_DIST_C) note_offset[c] = dist_c_buzzy_offset[c]; 
+				else if (IS_GRITTY_DIST_C) note_offset[c] = dist_c_gritty_offset[c]; 
+				else if (IS_UNSTABLE_DIST_C) note_offset[c] = dist_c_unstable_offset[c]; 
+			}
+			if (!note_offset[c]) continue;	//if no offset, no table should be created
+			
+			cout << endl << "Distortion " << uppercase << hex << distortion << dec;
+			if (c == 0) { IS_15KHZ = 0; IS_179MHZ = 0; IS_16BIT = 0; cout << ", 64kHz "; }
+			if (c == 1) { IS_15KHZ = 1; IS_179MHZ = 0; IS_16BIT = 0; cout << ", 15kHz "; }
+			if (c == 2) { IS_15KHZ = 0; IS_179MHZ = 1; IS_16BIT = 0; cout << ", 1.79MHz "; }
+			if (c == 3) { IS_15KHZ = 0; IS_179MHZ = 0; IS_16BIT = 1; cout << ", 16-bit "; }
+
+			if (d == 0xC0)
+			{
+				if (IS_BUZZY_DIST_C) cout << "(Buzzy)";
+				else if (IS_GRITTY_DIST_C) cout << "(Gritty)";
+				else if (IS_UNSTABLE_DIST_C) cout << "(Unstable)";
+			}
+			
+			cout << endl;
+			SEPARATOR;
+			
+			macro_table_gen(d, note_offset[c], IS_15KHZ, IS_179MHZ, IS_16BIT);
+			
+			cout << endl;
+			SEPARATOR;		
+		}
+		if (d == 0xC0) 
+		{	dist_c_counter++;	//the number of times the counter was used in the Distortion C case
+			if (dist_c_counter == 1)
+			{
+				IS_BUZZY_DIST_C = 0;
+				IS_GRITTY_DIST_C = 1;		//iteration 2: Gritty
+				goto repeat_dist_c;
+			}
+			else if (dist_c_counter == 2)
+			{
+				IS_GRITTY_DIST_C = 0;
+				IS_UNSTABLE_DIST_C = 1;		//iteration 3: Unstable
+				goto repeat_dist_c;
+			}
+			else IS_UNSTABLE_DIST_C = 0;		//done all Distortion C modes
+		}
 	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion 2 15khz table... Nah just kidding!" << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion 2 1.79mhz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 48;
-		double freq = p[note * 12];
-		int distortion = 0x20;
-		generate_table(i, freq, distortion, 0, 1, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_179mhz_2[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion 2 16-bit table..." << endl;
-	SEPARATOR;
-	cout << endl << "16-bit MSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0x20;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int msb = tab_16bit_2[i * 2] >> 8;
-		cout << "$" << hex << setfill('0') << setw(2) << msb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	cout << endl << "16-bit LSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0x20;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int lsb = tab_16bit_2[i * 2] & 0x00FF;
-		cout << "$" << hex << setfill('0') << setw(2) << lsb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion A 64khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 48;
-		double freq = p[note * 12];
-		int distortion = 0xA0;
-		generate_table(i, freq, distortion, 0, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_64khz_a_pure[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion A 15khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xA0;
-		generate_table(i, freq, distortion, 1, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_15khz_a_pure[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion A 1.79mhz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 108;
-		double freq = p[note * 12];
-		int distortion = 0xA0;
-		generate_table(i, freq, distortion, 0, 1, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_179mhz_a_pure[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion A 16-bit table..." << endl;
-	SEPARATOR;
-	cout << endl << "16-bit MSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xA0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int msb = tab_16bit_a_pure[i * 2] >> 8;
-		cout << "$" << hex << setfill('0') << setw(2) << msb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	cout << endl << "16-bit LSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xA0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int lsb = tab_16bit_a_pure[i * 2] & 0x00FF;
-		cout << "$" << hex << setfill('0') << setw(2) << lsb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Gritty 64khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 1;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 12;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_64khz_c_gritty[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Buzzy 64khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 1;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_64khz_c_buzzy[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Unstable 64khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 1;
-
-		int note = i + 36;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_64khz_c_unstable[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Buzzy 15khz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;	//technically this doesn't matter, but 15khz is always a Buzzy tone
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 12;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 1, 0, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_15khz_c_buzzy[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Gritty 1.79mhz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 1;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 60;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 1, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_179mhz_c_gritty[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Buzzy 1.79mhz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 1;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 84;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 1, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_179mhz_c_buzzy[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Unstable 1.79mhz table..." << endl;
-	SEPARATOR;
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 1;
-
-		int note = i + 96;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 1, 0);
-		if (i % 12 == 0) cout << endl;
-		cout << "$" << hex << setfill('0') << setw(2) << tab_179mhz_c_unstable[i];
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Gritty 16-bit table..." << endl;
-	SEPARATOR;
-	cout << endl << "16-bit MSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 1;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int msb = tab_16bit_c_gritty[i * 2] >> 8;
-		cout << "$" << hex << setfill('0') << setw(2) << msb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	cout << endl << "16-bit LSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 1;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int lsb = tab_16bit_c_gritty[i * 2] & 0x00FF;
-		cout << "$" << hex << setfill('0') << setw(2) << lsb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Buzzy 16-bit table..." << endl;
-	SEPARATOR;
-	cout << endl << "16-bit MSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 1;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int msb = tab_16bit_c_buzzy[i * 2] >> 8;
-		cout << "$" << hex << setfill('0') << setw(2) << msb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	cout << endl << "16-bit LSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 1;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 0;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int lsb = tab_16bit_c_buzzy[i * 2] & 0x00FF;
-		cout << "$" << hex << setfill('0') << setw(2) << lsb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
-
-	cout << endl << "Test!!! Generated Distortion C Unstable 16-bit table..." << endl;
-	SEPARATOR;
-	cout << endl << "16-bit MSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 1;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int msb = tab_16bit_c_unstable[i * 2] >> 8;
-		cout << "$" << hex << setfill('0') << setw(2) << msb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	cout << endl << "16-bit LSB\n";
-	for (int i = 0; i < 64; i++)
-	{
-		IS_BUZZY_DIST_C = 0;
-		IS_GRITTY_DIST_C = 0;
-		IS_UNSTABLE_DIST_C = 1;
-
-		int note = i + 24;
-		double freq = p[note * 12];
-		int distortion = 0xC0;
-		generate_table(i, freq, distortion, 0, 0, 1);
-		if (i % 12 == 0) cout << endl;
-		int lsb = tab_16bit_c_unstable[i * 2] & 0x00FF;
-		cout << "$" << hex << setfill('0') << setw(2) << lsb;
-		if ((i - 11) % 12 != 0 && i != 63) cout << ",";
-	}
-	cout << endl;
-	SEPARATOR;
 
 ///////////////////////////////////////////////////////////
 
@@ -711,7 +402,6 @@ that would be 232.5
 		break;
 	}
 	if (IS_VALID)
-		//PITCH = ((FREQ_17 / (coarse_divisor * divisor)) / (audf + modoffset)) / 2;
 		PITCH = get_pitch(audf, coarse_divisor, divisor, modoffset);
 
 	if (PITCH > 16.1)	//~C-0, lowest pitch allowed
@@ -964,4 +654,129 @@ void read_input(T* output, std::string prompt)
 		else break;
 	}
 }
+
+void macro_table_gen(int distortion, int note_offset, bool IS_15KHZ, bool IS_179MHZ, bool IS_16BIT)
+{	
+	//generate the array
+	for (int i = 0; i < 64; i++)
+	{
+		int note = i + note_offset;
+		double freq = p[note * 12];
+		generate_table(i, freq, distortion, IS_15KHZ, IS_179MHZ, IS_16BIT);
+	}
+	//generate the table output in .txt. This could technically be ignored if only the data in arrays is needed, eg for RMT Registers View or Tuning Editor.
+	if (!IS_16BIT)
+	{	
+		int tab_array[64] = { 0 };	//empty index to overwrite
+		
+		for (int i = 0; i < 64; i++)
+		{		
+			if (IS_15KHZ)
+			{
+				switch (distortion)
+				{
+					case 0xA0:
+						tab_array[i] = tab_15khz_a_pure[i];
+						break;
+					
+					case 0xC0:
+						tab_array[i] = tab_15khz_c_buzzy[i];
+						break;
+				}
+			}
+			else if (IS_179MHZ)
+			{
+				switch (distortion)
+				{
+					case 0x20:
+						tab_array[i] = tab_179mhz_2[i];
+						break;
+					
+					case 0xA0:
+						tab_array[i] = tab_179mhz_a_pure[i];
+						break;
+					
+					case 0xC0:
+						if (IS_BUZZY_DIST_C) tab_array[i] = tab_179mhz_c_buzzy[i];
+						else if (IS_GRITTY_DIST_C) tab_array[i] = tab_179mhz_c_gritty[i];
+						else if (IS_UNSTABLE_DIST_C) tab_array[i] = tab_179mhz_c_unstable[i];
+						break;
+				}			
+			}
+			else
+			{
+				switch (distortion)
+				{
+					case 0x20:
+						tab_array[i] = tab_64khz_2[i];
+						break;
+					
+					case 0xA0:
+						tab_array[i] = tab_64khz_a_pure[i];
+						break;
+					
+					case 0xC0:
+						if (IS_BUZZY_DIST_C) tab_array[i] = tab_64khz_c_buzzy[i];
+						else if (IS_GRITTY_DIST_C) tab_array[i] = tab_64khz_c_gritty[i];
+						else if (IS_UNSTABLE_DIST_C) tab_array[i] = tab_64khz_c_unstable[i];
+						break;
+				}
+			}
+			if (i % 12 == 0) cout << endl;
+			cout << "$" << hex << setfill('0') << setw(2) << tab_array[i];
+			if ((i - 11) % 12 != 0 && i != 63) cout << ",";
+		}	
+	}
+	else 	//16-bit
+	{
+		int tab_array[128] = { 0 };	//empty index to overwrite
+		
+		for (int t = 0; t < 2; t++)	//iteration of loop, once per byte order
+		{
+			for (int i = 0; i < 64; i++)
+			{
+				switch (distortion)
+				{
+					case 0x20:
+						tab_array[i * 2] = tab_16bit_2[i * 2];
+						break;
+					
+					case 0xA0:
+						tab_array[i * 2] = tab_16bit_a_pure[i * 2];
+						break;
+					
+					case 0xC0:
+						if (IS_BUZZY_DIST_C) tab_array[i * 2] = tab_16bit_c_buzzy[i * 2];
+						else if (IS_GRITTY_DIST_C) tab_array[i * 2] = tab_16bit_c_gritty[i * 2];
+						else if (IS_UNSTABLE_DIST_C) tab_array[i * 2] = tab_16bit_c_unstable[i * 2];
+						break;
+				}
+				if (t == 0) 		//iteration 1
+				{
+					if (i == 0) cout << endl << "16-bit MSB\n";
+
+					if (i % 12 == 0) cout << endl;
+					int msb = tab_array[i * 2] >> 8;
+					cout << "$" << hex << setfill('0') << setw(2) << msb;
+					if ((i - 11) % 12 != 0 && i != 63) cout << ",";
+				}
+				else if (t == 1) 	//iteration 2
+				{
+					if (i == 0) cout << endl << "\n16-bit LSB\n";
+
+					if (i % 12 == 0) cout << endl;
+					int lsb = tab_array[i * 2] & 0x00FF;
+					cout << "$" << hex << setfill('0') << setw(2) << lsb;
+					if ((i - 11) % 12 != 0 && i != 63) cout << ",";
+				}
+	
+			}
+		
+		}
+		
+	}
+	
+}
+
+
 

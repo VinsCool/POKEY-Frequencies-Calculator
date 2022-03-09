@@ -27,3 +27,4 @@ int delta_audf(int audf, double freq, int coarse_divisor, double divisor, int mo
 double get_tuning();
 int get_region();
 template <typename T> void read_input(T* output, std::string prompt);
+void macro_table_gen (int distortion, int note_offset, bool IS_15KHZ, bool IS_179MHZ, bool IS_16BIT);
