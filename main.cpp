@@ -12,29 +12,42 @@ const char* notes[] =
 
 //arrays of tuning tables to generate...
 //
-//Distortion 2
+//PAGE_DISTORTION_2 => Address 0xB000
 int tab_64khz_2[64] = { 0 };
 int tab_179mhz_2[64] = { 0 };
 int tab_16bit_2[128] = { 0 };
-
-//Distortion A
+//
+//PAGE_DISTORTION_A => Address 0xB100
 int tab_64khz_a_pure[64] = { 0 };
-int tab_15khz_a_pure[64] = { 0 };
 int tab_179mhz_a_pure[64] = { 0 };
 int tab_16bit_a_pure[128] = { 0 };
 //
-//Distortion C
-int tab_64khz_c_gritty[64] = { 0 };
+//PAGE_DISTORTION_C => Address 0xB200
 int tab_64khz_c_buzzy[64] = { 0 };
-int tab_64khz_c_unstable[64] = { 0 };
-int tab_15khz_c_buzzy[64] = { 0 };
-int tab_179mhz_c_gritty[64] = { 0 };
 int tab_179mhz_c_buzzy[64] = { 0 };
-int tab_179mhz_c_unstable[64] = { 0 };
-int tab_16bit_c_gritty[128] = { 0 };
 int tab_16bit_c_buzzy[128] = { 0 };
-int tab_16bit_c_unstable[128] = { 0 };
 //
+//PAGE_DISTORTION_E => Address 0xB300
+int tab_64khz_c_gritty[64] = { 0 };
+int tab_179mhz_c_gritty[64] = { 0 };
+int tab_16bit_c_gritty[128] = { 0 };
+//
+//PAGE_EXTRA_0 => Address 0xB400, 0xB480 for 15khz Pure and 0xB4C0 for 15khz Buzzy
+//Croissant Sawtooth ch1	//no generator yet
+//Croissant Sawtooth ch3	//no generator yet
+int tab_15khz_a_pure[64] = { 0 };
+int tab_15khz_c_buzzy[64] = { 0 };
+//
+//PAGE_EXTRA_1 => Address 0xB500
+//Clarinet Lo	//no generator yet
+//Clarinet Hi	//no generator yet
+//unused
+//unused
+//
+//PAGE_EXTRA_2 => Address 0xB600
+int tab_64khz_c_unstable[64] = { 0 };
+int tab_179mhz_c_unstable[64] = { 0 };
+int tab_16bit_c_unstable[128] = { 0 };
 //
 
 int i_audf, i_audc, i_audctl, i_ch_index, FREQ_17, machine_region;
